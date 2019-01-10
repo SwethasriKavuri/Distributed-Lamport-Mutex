@@ -1,0 +1,91 @@
+import sys
+import random
+config(channel is fifo, clock is lamport)
+import orig
+import lamu
+import spec
+import time
+from texttable import Texttable
+class P(process):
+	def run():
+		step_req = int(nreq/nstep)
+		for i in range(0,nrepeat):
+			nprocs = nprocess
+			ps = new(orig.P, num=nprocs)
+			for j in range(step_req,nreq+1):
+				for p in ps: setup(p, (ps-{p}, j))
+				j+=step_req
+			start(ps)
+			--yeild
+			await(each(p in ps, has=received(('done', p))))
+			send(('done',), to=ps)
+		for i in range(0,nrepeat):
+			nprocs = nprocess
+			ps = new(spec.P, num=nprocs)
+			for j in range(step_req,nreq+1):
+				for p in ps: setup(p, (ps-{p}, j))
+				j+=step_req
+			start(ps)
+			--yeild
+			await(each(p in ps, has=received(('done', p))))
+			send(('done',), to=ps)	
+			
+		for i in range(0,nrepeat):
+			nprocs = nprocess
+			ps = new(lamu.P, num=nprocs)
+			for j in range(step_req,nreq+1):
+				for p in ps: setup(p, (ps-{p}, j))
+				j+=step_req
+			start(ps)
+			--yeild
+			await(each(p in ps, has=received(('done', p))))
+			send(('done',), to=ps)	
+
+		step_req = int(nprocess/nstep)
+		for i in range(0,nrepeat):
+			for j in range(step_req,nprocess+1):
+				ps = new(orig.P, num=j)
+			for p in ps: setup(p, (ps-{p}, nreq))
+			start(ps)
+			--yeild
+			await(each(p in ps, has=received(('done', p))))
+			send(('done',), to=ps)
+		for i in range(0,nrepeat):
+			for j in range(step_req,nprocess+1):
+				ps = new(spec.P, num=j)
+			for p in ps: setup(p, (ps-{p}, nreq))
+			start(ps)
+			--yeild
+			await(each(p in ps, has=received(('done', p))))
+			send(('done',), to=ps)
+
+		for i in range(0,nrepeat):
+			for j in range(step_req,nprocess+1):
+				ps = new(lamu.P, num=j)
+			for p in ps: setup(p, (ps-{p}, nreq))
+			start(ps)
+			--yeild
+			await(each(p in ps, has=received(('done', p))))
+			send(('done',), to=ps) 	
+
+	def setup(s:set, nprocess:int,nreq:int,nstep:int,nrepeat:int):
+		self.q = set()
+		self.nprocess = nprocess
+		self.nreq = nreq
+		self.nstep = nstep
+		self.nrepeat = nrepeat
+	
+	def receive(msg= ('Time Analysis',algorithm,time_taken,total_cpu_time,p)):
+		t = Texttable()
+		t.add_rows([['Algorithm', 'Execution_Time','CPU_Time'], [algorithm, time_taken,total_cpu_time]])
+		#output("Time Analysis",algorithm,time_taken,total_cpu_time,p)
+		output(t.draw())
+def main():
+    nprocess = int(sys.argv[1]) if len(sys.argv) > 1 else 10
+    nreq = int(sys.argv[2]) if len(sys.argv) > 2 else 1
+    nstep = int(sys.argv[4]) if len(sys.argv) > 3 else 1
+    nrepeat = int(sys.argv[5]) if len(sys.argv) > 4 else 1   
+    pss = new(P, num=1)
+    for p in pss: setup(pss,(pss-{p},nprocess,nreq,nstep,nrepeat))
+    start(pss)
+    send(('done',), to=pss)
